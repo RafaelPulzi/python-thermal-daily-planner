@@ -59,6 +59,22 @@ AGENDA DO DIA
 
 ---
 
+## ✨ Inspiração
+
+Este projeto nasceu como uma adaptação pessoal após assistir ao vídeo que mostra como uma simples impressora térmica pode ajudar a combater a procrastinação e trazer mais clareza ao dia a dia:
+
+🎥 https://www.youtube.com/watch?v=xg45b8UXoZI
+
+A ideia original foi desenvolvida por CodingWithLewis, cujo repositório serviu como base conceitual para esta implementação:
+🔗 https://github.com/CodingWithLewis/ReceiptPrinterAgent
+
+Por sua vez, o conceito foi inspirado no artigo da Laurie Hérault, que relata como uma impressora térmica ajudou a transformar sua produtividade e organização pessoal:
+📝 https://www.laurieherault.com/articles/a-thermal-receipt-printer-cured-my-procrastination
+
+Este projeto é minha interpretação dessa ideia — expandindo o conceito com integrações e ajustes voltados à minha rotina. Compartilho aqui na esperança de que também inspire outras pessoas a criarem seus próprios sistemas de organização e produtividade.
+
+---
+
 # ⚙️ Funcionalidades
 
 * Impressão automática em impressora térmica
