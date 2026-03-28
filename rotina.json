@@ -1,0 +1,93 @@
+{
+"plano_mestre_casa_e_treino": {
+"rotina_diaria": {
+"segunda_feira": {
+"treino": {
+"tipo": "Treino A",
+"exercicios": [
+"Exercício 1",
+"Exercício 2",
+"Exercício 3"
+]
+},
+"casa": [
+"Tarefa doméstica 1",
+"Tarefa doméstica 2",
+"Tarefa doméstica 3"
+]
+},
+"terca_feira": {
+"treino": {
+"tipo": "Treino B",
+"exercicios": [
+"Exercício 1",
+"Exercício 2"
+]
+},
+"casa": [
+"Tarefa doméstica 1",
+"Tarefa doméstica 2"
+]
+},
+"quarta_feira": {
+"treino": {
+"tipo": "Treino C",
+"exercicios": [
+"Exercício 1",
+"Exercício 2"
+]
+},
+"casa": [
+"Tarefa doméstica 1",
+"Tarefa doméstica 2"
+]
+},
+"quinta_feira": {
+"treino": {
+"tipo": "Treino A",
+"exercicios": [
+"Exercício 1",
+"Exercício 2"
+]
+},
+"casa": [
+"Tarefa doméstica 1"
+]
+},
+"sexta_feira": {
+"treino": {
+"tipo": "Treino B",
+"exercicios": [
+"Exercício 1"
+]
+},
+"casa": [
+"Tarefa doméstica 1"
+]
+},
+"sabado": {
+"treino": {
+"tipo": "Treino leve",
+"exercicios": [
+"Caminhada",
+"Alongamento"
+]
+},
+"casa": [
+"Limpeza geral"
+]
+},
+"domingo": {
+"treino": {
+"tipo": "Descanso",
+"exercicios": [
+"Mobilidade leve"
+]
+},
+"casa": [
+"Planejamento da semana"
+]
+}
+}
+}
+}
