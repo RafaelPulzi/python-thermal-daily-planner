@@ -1,13 +1,15 @@
 """
 Thermal Daily Checklist Printer
 --------------------------------
-Imprime checklist diário com:
-- Rotina JSON
-- Google Calendar (.ics)
-- Clima (OpenWeather)
-- Integração com Obsidian
+Features:
+- JSON daily routine
+- Google Calendar (ICS)
+- Weather (OpenWeather)
+- Obsidian integration
+- QR Code with full payload
+- Duplicate-safe daily notes
 
-CONFIGURE A SEÇÃO "USER CONFIG" ANTES DE USAR
+EDIT USER CONFIG SECTION BEFORE USING
 """
 
 from escpos.printer import Win32Raw
@@ -17,45 +19,39 @@ import json
 import os
 
 # =============================
-# USER CONFIG  (EDITAR AQUI)
+# USER CONFIG
 # =============================
 
-# Nome da impressora térmica (Windows)
-# Exemplo: "POS-58", "XP-80", "Thermal Printer"
+# Printer name (Windows)
 PRINTER_NAME = "YOUR_PRINTER_NAME"
 
-# Arquivo JSON com rotinas
+# Routine JSON file
 JSON_FILE = "rotina.json"
 
 # OpenWeather API Key
-# https://openweathermap.org/api
-CLIMA_API_KEY = "YOUR_OPENWEATHER_API_KEY"
+CLIMA_API_KEY = "YOUR_API_KEY"
 
-# Latitude e Longitude da sua cidade
-# https://www.latlong.net/
-LAT = 0.0
-LON = 0.0
+# Your city latitude / longitude
+LAT = -23.5505
+LON = -46.6333
 
-# Caminho do Vault do Obsidian
-# Exemplo Windows:
-# r"C:\Users\SeuUsuario\Documents\ObsidianVault"
+# Obsidian Vault folder
 OBSIDIAN_VAULT = r"PATH_TO_YOUR_OBSIDIAN_VAULT"
 
-# Links iCal públicos (Google Calendar)
-# Exportar em:
-# Google Calendar → Settings → Integrate Calendar → Public ICS
+# Google Calendar public ICS links
 GOOGLE_ICS_URLS = [
-    # "https://calendar.google.com/calendar/ical/xxxxx/basic.ics"
+    # "https://calendar.google.com/calendar/ical/xxxx/basic.ics",
+    # "https://calendar.google.com/calendar/ical/yyyy/basic.ics",
 ]
 
 # =============================
-# CLIMA
+# WEATHER
 # =============================
 
 def obter_clima():
     try:
         url = (
-            "https://api.openweathermap.org/data/3.0/onecall"
+            "https://api.openweathermap.org/data/2.5/weather"
             f"?lat={LAT}"
             f"&lon={LON}"
             "&units=metric"
@@ -66,20 +62,23 @@ def obter_clima():
         r = requests.get(url, timeout=5)
         data = r.json()
 
-        temp = round(data["current"]["temp"])
-        descricao = data["current"]["weather"][0]["description"].capitalize()
-        umidade = data["current"]["humidity"]
+        temp = round(data["main"]["temp"])
+        descricao = data["weather"][0]["description"].capitalize()
+        umidade = data["main"]["humidity"]
+        cidade = data["name"]
 
-        return f"{descricao} | {temp}C | {umidade}%"
+        return f"{cidade} | {descricao} | {temp}°C | {umidade}%"
 
     except Exception:
         return "Clima indisponível"
+
 
 # =============================
 # OBSIDIAN
 # =============================
 
 def exportar_para_obsidian(tarefas, data):
+    """Create/update daily note without duplicating tasks"""
 
     clima = obter_clima()
 
@@ -88,16 +87,19 @@ def exportar_para_obsidian(tarefas, data):
 
     os.makedirs(os.path.dirname(caminho), exist_ok=True)
 
-    tarefas_md = [f"- [ ] {tarefa}" for tarefa in tarefas]
+    tarefas_md = [f"- [ ] {t}" for t in tarefas]
 
+    # Avoid duplication
     if os.path.exists(caminho):
+
         with open(caminho, "r", encoding="utf-8") as f:
             conteudo = f.read()
 
-        existentes = set()
-        for linha in conteudo.splitlines():
-            if linha.strip().startswith("- [ ]"):
-                existentes.add(linha.strip())
+        existentes = set(
+            linha.strip()
+            for linha in conteudo.splitlines()
+            if linha.strip().startswith("- [ ]")
+        )
 
         novas = [t for t in tarefas_md if t not in existentes]
 
@@ -111,9 +113,26 @@ def exportar_para_obsidian(tarefas, data):
 
     tarefas_str = "\n".join(tarefas_md)
 
-    template = f"""# Notas Diarias
+    template = f"""---
+date: {data.strftime("%Y-%m-%d")}
+tags:
+  - diario
+---
+
+# Notas Diarias
 
 > {clima}
+
+***
+
+### Jornal
+#### Manha
+
+#### Tarde 
+
+#### Noite 
+
+***
 
 ### Atividades
 {tarefas_str}
@@ -121,6 +140,7 @@ def exportar_para_obsidian(tarefas, data):
 
     with open(caminho, "w", encoding="utf-8") as f:
         f.write(template)
+
 
 # =============================
 # GOOGLE CALENDAR ICS
@@ -142,27 +162,33 @@ def ler_ics_simples(url):
 
         for linha in linhas:
 
+            linha = linha.strip()
+
             if linha.startswith("DTSTART"):
                 data_raw = linha.split(":")[1]
                 data = data_raw[:8]
 
                 if "T" in data_raw:
                     hora = data_raw[9:11] + ":" + data_raw[11:13]
+                else:
+                    hora = "00:00"
 
-            if linha.startswith("SUMMARY"):
+            elif linha.startswith("SUMMARY"):
                 titulo = linha.split(":", 1)[1]
 
-            if linha.startswith("END:VEVENT"):
+            elif linha.startswith("END:VEVENT"):
                 if data == hoje and titulo:
                     tarefas.append(f"{hora} - {titulo}")
 
                 titulo = None
                 data = None
+                hora = "00:00"
 
         return tarefas
 
-    except:
+    except Exception:
         return []
+
 
 def ler_todos_calendarios():
     todas = []
@@ -172,17 +198,19 @@ def ler_todos_calendarios():
 
     return sorted(todas)
 
+
 # =============================
 # UTIL
 # =============================
 
 def carregar_dados():
     if not os.path.exists(JSON_FILE):
-        print("rotina.json não encontrado")
+        print("rotina.json not found")
         return None
 
     with open(JSON_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def formatar_texto(texto, largura=32):
     palavras = texto.split(" ")
@@ -199,6 +227,7 @@ def formatar_texto(texto, largura=32):
     linhas.append(linha_atual)
     return "\n".join(linhas)
 
+
 # =============================
 # MAIN
 # =============================
@@ -214,7 +243,7 @@ def imprimir_dia():
     try:
         p = Win32Raw(PRINTER_NAME)
     except Exception as e:
-        print("Erro impressora:", e)
+        print("Printer error:", e)
         return
 
     agora = datetime.now()
@@ -230,26 +259,79 @@ def imprimir_dia():
 
     tarefas_obsidian = []
 
+    CENTRALIZAR = b'\x1b\x61\x01'
+    ESQUERDA = b'\x1b\x61\x00'
+    NEGRITO_ON = b'\x1b\x45\x01'
+    NEGRITO_OFF = b'\x1b\x45\x00'
+    DUPLO_ON = b'\x1d\x21\x11'
+    DUPLO_OFF = b'\x1d\x21\x00'
+
+    # HEADER
+    p._raw(CENTRALIZAR + NEGRITO_ON + DUPLO_ON)
     p.text("CHECKLIST DO DIA\n")
-    p.text(agora.strftime("%d/%m/%Y") + "\n")
+    p._raw(DUPLO_OFF)
+    p.text(f"{agora.strftime('%d/%m/%Y')}\n")
+    p.text(dia_chave.replace("_", "-").upper() + "\n")
     p.text(clima + "\n")
+    p._raw(NEGRITO_OFF)
     p.text("-" * 30 + "\n")
 
-    for ex in hoje["treino"]["exercicios"]:
-        p.text("[ ] " + ex + "\n")
-        tarefas_obsidian.append("Treino: " + ex)
+    # TREINO
+    p._raw(ESQUERDA + NEGRITO_ON)
+    p.text(f"TREINO: {hoje['treino']['tipo']}\n")
+    p._raw(NEGRITO_OFF)
 
-    for tarefa in hoje["casa"]:
-        p.text("[ ] " + tarefa + "\n")
-        tarefas_obsidian.append("Casa: " + tarefa)
+    for ex in hoje['treino']['exercicios']:
+        p.text(formatar_texto(f"[ ] {ex}") + "\n")
+        tarefas_obsidian.append(f"Treino: {ex}")
 
-    for evento in eventos_google:
-        p.text("[ ] " + evento + "\n")
-        tarefas_obsidian.append("Agenda: " + evento)
+    p.text("\n")
 
+    # CASA
+    p._raw(NEGRITO_ON)
+    p.text("LIMPEZA E ORGANIZACAO:\n")
+    p._raw(NEGRITO_OFF)
+
+    for tarefa in hoje['casa']:
+        p.text(formatar_texto(f"[ ] {tarefa}") + "\n")
+        tarefas_obsidian.append(f"Casa: {tarefa}")
+
+    # GOOGLE
+    if eventos_google:
+        p._raw(NEGRITO_ON)
+        p.text("\nAGENDA DO DIA\n")
+        p._raw(NEGRITO_OFF)
+
+        for evento in eventos_google:
+            p.text(f"[ ] {evento}\n")
+            tarefas_obsidian.append(f"Agenda: {evento}")
+
+    # OBSIDIAN
     exportar_para_obsidian(tarefas_obsidian, agora)
 
+    # QR CODE
+    qr_payload = {
+        "data": agora.strftime('%Y-%m-%d'),
+        "dia": dia_chave,
+        "clima": clima,
+        "treino": hoje['treino']['tipo'],
+        "exercicios": hoje['treino']['exercicios'],
+        "tarefas_casa": hoje['casa'],
+        "agenda": eventos_google
+    }
+
+    p.text("\n")
+    p._raw(CENTRALIZAR)
+    p.text("Scan for full details\n")
+
+    p.qr(
+        json.dumps(qr_payload, ensure_ascii=False),
+        size=4
+    )
+
+    p.text("\n\n")
     p.cut()
+
 
 # =============================
 # START
